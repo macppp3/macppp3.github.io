@@ -92,6 +92,12 @@
   /* ---------- Grid view ---------- */
   .grid-wrap{ flex:1 1 auto; padding:26px 24px 60px; }
   .grid-hint{ font-size:12px; color:var(--ink-soft); margin:0 0 16px; }
+  .bulk-bar{
+    display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+    background:var(--card); border:1.5px solid var(--sky-deep); border-radius:14px;
+    padding:10px 14px; margin:0 0 16px;
+  }
+  .bulk-bar .bulk-count{ font-size:13px; font-weight:700; color:var(--ink); margin-right:auto; }
   .character-grid{ display:grid; grid-template-columns:repeat(6, 1fr); gap:24px; }
   .grid-card{
     background:var(--card); border:1px solid var(--line); border-radius:16px; padding:14px;
@@ -102,6 +108,15 @@
   .grid-card[draggable="true"]{cursor:grab;}
   .grid-card.dragging{opacity:.35;}
   .grid-card.drag-over{ outline:2px dashed var(--lavender-deep); outline-offset:3px; }
+  .grid-card.selectable{ user-select:none; }
+  .grid-card.selected{ outline:3px solid var(--sky-deep); outline-offset:2px; background:var(--sky-pale); }
+  .grid-card .select-check{
+    position:absolute; top:8px; right:8px; width:22px; height:22px; border-radius:50%;
+    border:2px solid var(--card); background:rgba(255,255,255,.85); color:var(--sky-deep);
+    display:none; align-items:center; justify-content:center; font-size:13px; font-weight:800;
+  }
+  .grid-card{ position:relative; }
+  .grid-card.selected .select-check{ display:flex; background:var(--sky-deep); color:#fff; border-color:#fff; }
   .grid-thumb-wrap{ width:100%; aspect-ratio:1/1; border-radius:12px; overflow:hidden; background:var(--sky-pale); margin-bottom:10px; }
   .grid-thumb{ width:100%;height:100%; background-size:cover; background-position:center; display:flex;align-items:center;justify-content:center; color:#fff; font-weight:800; font-size:64px; }
   .grid-no{ font-family:var(--font-mono); font-size:11px; color:var(--ink-soft); display:flex; align-items:center; justify-content:center; gap:6px; }
@@ -253,13 +268,31 @@
   .modal-error.show{display:block;}
 
   .tag-palette-row{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px; }
-  .tag-palette-chip{ font-size:11px; font-weight:700; padding:4px 10px; border-radius:999px; border:1px solid transparent; cursor:pointer; }
+  .tag-palette-chip{
+    position:relative; display:inline-flex; align-items:center; gap:5px;
+    font-size:11px; font-weight:700; padding:4px 10px; border-radius:999px;
+    border:1px solid transparent; cursor:pointer;
+  }
+  .tag-palette-chip .chip-x{
+    display:none; align-items:center; justify-content:center;
+    width:15px; height:15px; border-radius:50%;
+    background:rgba(0,0,0,.28); color:#fff; font-size:10px; line-height:1; font-weight:700;
+  }
+  .tag-palette-chip:hover .chip-x{ display:flex; }
   .tag-rows{ display:flex; flex-direction:column; gap:8px; }
   .tag-row{ display:flex; align-items:center; gap:8px; }
   .tag-row input[type=text]{ flex:1 1 auto; border:1.5px solid var(--line); border-radius:8px; padding:7px 10px; font-size:12.5px; outline:none; }
   .tag-row input[type=text]:focus{border-color:var(--sky-deep);}
   .tag-row input[type=color]{ flex:0 0 auto; width:34px;height:30px; border:1.5px solid var(--line); border-radius:8px; padding:2px; background:none; }
   .tag-row .tag-idx{ flex:0 0 auto; font-family:var(--font-mono); font-size:10px; color:var(--ink-soft); width:16px; }
+  .tag-row .tag-clear-btn{
+    flex:0 0 auto; width:26px;height:26px; border-radius:50%; border:1.5px solid var(--line);
+    background:var(--card); color:var(--ink-soft); font-size:13px; line-height:1; font-weight:700;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .tag-row .tag-clear-btn:hover{ border-color:var(--danger); color:var(--danger); background:var(--danger-soft); }
+  .tag-row .tag-clear-btn:disabled{ opacity:.25; cursor:default; }
+  .tag-row .tag-clear-btn:disabled:hover{ border-color:var(--line); color:var(--ink-soft); background:var(--card); }
 
   .form-version-card{
     border:1.5px solid var(--line); border-radius:14px; padding:14px 14px 6px; margin-bottom:12px; background:var(--lavender-pale);
@@ -274,6 +307,21 @@
     border-radius:12px; padding:9px 14px; font-size:12.5px; font-weight:700; width:100%; margin-top:2px;
   }
   .add-version-btn:hover{background:var(--lavender-pale);}
+
+  .tag-manage-list{ display:flex; flex-direction:column; gap:10px; max-height:50vh; overflow-y:auto; margin-bottom:6px; }
+  .tag-manage-row{
+    display:flex; align-items:center; gap:8px; border:1.5px solid var(--line); border-radius:12px; padding:10px;
+  }
+  .tag-manage-row input[type=text]{
+    flex:1 1 auto; border:1.5px solid var(--line); border-radius:8px; padding:7px 10px; font-size:13px; outline:none;
+  }
+  .tag-manage-row input[type=text]:focus{ border-color:var(--sky-deep); }
+  .tag-manage-row input[type=color]{
+    flex:0 0 auto; width:34px; height:30px; border:1.5px solid var(--line); border-radius:8px; padding:2px; background:none;
+  }
+  .tag-manage-row .tm-count{ flex:0 0 auto; font-family:var(--font-mono); font-size:10.5px; color:var(--ink-soft); white-space:nowrap; }
+  .tag-manage-row .btn{ padding:6px 12px; font-size:12px; }
+  .tag-manage-empty{ font-size:13px; color:var(--ink-soft); padding:16px 4px; text-align:center; }
 
   .toast{
     position:fixed; bottom:20px; left:50%; transform:translateX(-50%) translateY(20px);
@@ -329,6 +377,7 @@
 
   <div class="grid-wrap" id="gridView">
     <p class="grid-hint" id="gridHint">이 도감은 공용이에요 — 누구나 열람할 수 있고, 편집은 편집자 로그인 후에만 가능해요.</p>
+    <div id="bulkBar"></div>
     <div class="character-grid" id="characterGrid"></div>
   </div>
 
@@ -409,6 +458,43 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="bulkTagOverlay">
+  <div class="modal">
+    <h3 id="bulkTagTitle">선택한 캐릭터에 태그 추가</h3>
+    <form id="bulkTagForm">
+      <div class="field">
+        <label>자주 쓰는 태그</label>
+        <div class="tag-palette-row" id="bulkTagPaletteRow"></div>
+      </div>
+      <div class="field">
+        <label>태그 이름</label>
+        <input type="text" id="bulk-tag-label" placeholder="예: 이벤트한정" required />
+      </div>
+      <div class="field">
+        <label>색</label>
+        <input type="color" id="bulk-tag-color" value="#3FA9E8" />
+      </div>
+      <div class="hint">이미 태그가 5개 꽉 찬 캐릭터는 자동으로 건너뛰어요.</div>
+      <div class="modal-actions">
+        <button type="button" class="btn" id="bulkTagCancelBtn">취소</button>
+        <button type="submit" class="btn primary">선택한 캐릭터에 추가</button>
+      </div>
+      <div class="modal-error" id="bulkTagError"></div>
+    </form>
+  </div>
+</div>
+
+<div class="modal-overlay" id="tagManageOverlay">
+  <div class="modal">
+    <h3>태그 관리</h3>
+    <p class="hint" style="margin-bottom:14px;">이름이나 색을 고치고 "저장"을 누르면, 이 태그를 가진 모든 캐릭터에 바로 반영돼요.</p>
+    <div class="tag-manage-list" id="tagManageList"></div>
+    <div class="modal-actions">
+      <button type="button" class="btn primary" id="tagManageCloseBtn">닫기</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -457,6 +543,15 @@
   const loginForm = document.getElementById('loginForm');
   const loginError = document.getElementById('loginError');
   const loginCancelBtn = document.getElementById('loginCancelBtn');
+  const bulkBar = document.getElementById('bulkBar');
+  const bulkTagOverlay = document.getElementById('bulkTagOverlay');
+  const bulkTagForm = document.getElementById('bulkTagForm');
+  const bulkTagError = document.getElementById('bulkTagError');
+  const bulkTagPaletteRow = document.getElementById('bulkTagPaletteRow');
+  const bulkTagCancelBtn = document.getElementById('bulkTagCancelBtn');
+  const tagManageOverlay = document.getElementById('tagManageOverlay');
+  const tagManageList = document.getElementById('tagManageList');
+  const tagManageCloseBtn = document.getElementById('tagManageCloseBtn');
   const toastEl = document.getElementById('toast');
 
   let characters = [];
@@ -466,6 +561,10 @@
   let activeId = null;
   let editingId = null;
   let dragSourceId = null;
+  let selectionMode = false;
+  let selectedIds = new Set();
+  let longPressTriggered = false;
+  let pressTimer = null;
   let activeFormIndex = -1; // -1 = base
   let currentTags = [];
   let currentForms = []; // working array while editing: {id, label, image, tmi, skills}
@@ -717,15 +816,17 @@
       authArea.innerHTML = `
         <span class="editor-pill">편집자 모드</span>
         <button class="add-btn" id="addBtn">+ 새 캐릭터</button>
+        <button class="ghost-btn" id="tagManageBtn">태그 관리</button>
         <button class="ghost-btn" id="exportBtn" title="백업 파일 다운로드">백업 저장</button>
         <label class="ghost-btn file-upload-btn" style="margin:0;">백업 복원<input type="file" id="importInput" accept="application/json" hidden /></label>
         <button class="ghost-btn" id="logoutBtn">로그아웃</button>
       `;
       document.getElementById('addBtn').addEventListener('click', ()=> openCharModal(null));
+      document.getElementById('tagManageBtn').addEventListener('click', openTagManageModal);
       document.getElementById('exportBtn').addEventListener('click', exportBackup);
       document.getElementById('importInput').addEventListener('change', handleImportFile);
       document.getElementById('logoutBtn').addEventListener('click', ()=>{
-        isEditor = false; showToast('로그아웃했어요'); render();
+        isEditor = false; selectedIds.clear(); selectionMode = false; showToast('로그아웃했어요'); render();
       });
     }else{
       authArea.innerHTML = `<button class="ghost-btn" id="loginBtn">편집자 로그인</button>`;
@@ -799,16 +900,18 @@
   function renderGrid(){
     const list = filteredList();
     const searching = searchInput.value.trim().length > 0;
-    const canDrag = isEditor && !searching;
+    const canDrag = isEditor && !searching && !selectionMode;
     countLabel.textContent = characters.length + ' entries';
 
     if(isEditor){
       gridHint.textContent = searching
         ? '검색 중에는 순서를 바꿀 수 없어요. 검색어를 지우면 카드를 드래그해서 순서를 바꿀 수 있어요.'
-        : '카드를 드래그해서 순서를 바꿀 수 있어요. 순서를 바꾸면 도감 번호도 자동으로 재정렬돼요.';
+        : '카드를 드래그해서 순서를 바꿀 수 있어요. 카드를 꾹 누르거나 Shift+클릭하면 여러 개를 골라 일괄 삭제/태그 추가를 할 수 있어요.';
     }else{
       gridHint.textContent = '이 도감은 공용이에요 — 누구나 열람할 수 있고, 편집은 편집자 로그인 후에만 가능해요.';
     }
+
+    renderBulkBar();
 
     if(list.length === 0){
       characterGrid.innerHTML = `<div class="empty-grid">${characters.length === 0 ? (isEditor ? '아직 등록된 캐릭터가 없어요. 새 캐릭터를 추가해보세요.' : '아직 등록된 캐릭터가 없어요.') : '검색 결과가 없어요.'}</div>`;
@@ -818,8 +921,10 @@
       const globalNo = characters.indexOf(c) + 1;
       const skills = (c.skills||[]).slice(0,3);
       const likes = likeCounts[c.id] || 0;
+      const isSelected = selectedIds.has(c.id);
       return `
-      <div class="grid-card" data-id="${c.id}" draggable="${canDrag ? 'true' : 'false'}">
+      <div class="grid-card ${isEditor ? 'selectable' : ''} ${isSelected ? 'selected' : ''}" data-id="${c.id}" draggable="${canDrag ? 'true' : 'false'}">
+        ${isEditor ? `<span class="select-check">✓</span>` : ''}
         <div class="grid-thumb-wrap">${thumbHTML(c, 'grid-thumb')}</div>
         <div class="grid-no">No.${pad(globalNo)} <span class="grid-like">❤ ${likes}</span></div>
         <div class="grid-name">${escapeHTML(c.name || '이름 없음')}</div>
@@ -828,10 +933,126 @@
     }).join('');
 
     characterGrid.querySelectorAll('.grid-card').forEach(el=>{
-      el.addEventListener('click', ()=>{ if(el.classList.contains('dragging')) return; openDetail(el.dataset.id); });
+      const id = el.dataset.id;
+
+      el.addEventListener('click', (e)=>{
+        if(el.classList.contains('dragging')) return;
+        if(longPressTriggered){ longPressTriggered = false; return; }
+        if(isEditor && (selectionMode || e.shiftKey)){
+          e.preventDefault();
+          toggleSelect(id);
+          renderGrid();
+          return;
+        }
+        openDetail(id);
+      });
+
+      if(isEditor){
+        el.addEventListener('pointerdown', (e)=>{
+          if(e.button !== undefined && e.button !== 0) return; // left click / touch only
+          clearTimeout(pressTimer);
+          longPressTriggered = false;
+          pressTimer = setTimeout(()=>{
+            longPressTriggered = true;
+            selectionMode = true;
+            toggleSelect(id);
+            renderGrid();
+          }, 550);
+        });
+        ['pointerup','pointerleave','pointermove','dragstart'].forEach(evt=>{
+          el.addEventListener(evt, ()=> clearTimeout(pressTimer));
+        });
+      }
     });
     if(canDrag) attachDragHandlers();
   }
+
+  function toggleSelect(id){
+    if(selectedIds.has(id)) selectedIds.delete(id); else selectedIds.add(id);
+    if(selectedIds.size === 0) selectionMode = false;
+  }
+  function clearSelection(){
+    selectedIds.clear();
+    selectionMode = false;
+    renderGrid();
+  }
+
+  function renderBulkBar(){
+    if(!isEditor || selectedIds.size === 0){ bulkBar.innerHTML = ''; return; }
+    bulkBar.innerHTML = `
+      <div class="bulk-bar">
+        <span class="bulk-count">${selectedIds.size}개 선택됨</span>
+        <button type="button" class="btn edit" id="bulkTagBtn">+ 태그 추가</button>
+        <button type="button" class="btn delete" id="bulkDeleteBtn">삭제</button>
+        <button type="button" class="btn" id="bulkClearBtn">선택 해제</button>
+      </div>
+    `;
+    document.getElementById('bulkTagBtn').addEventListener('click', openBulkTagModal);
+    document.getElementById('bulkDeleteBtn').addEventListener('click', bulkDeleteSelected);
+    document.getElementById('bulkClearBtn').addEventListener('click', clearSelection);
+  }
+
+  async function bulkDeleteSelected(){
+    const n = selectedIds.size;
+    if(!confirm(`선택한 캐릭터 ${n}명을 삭제할까요? 되돌릴 수 없어요.`)) return;
+    characters = characters.filter(c=> !selectedIds.has(c.id));
+    selectedIds.clear();
+    selectionMode = false;
+    await saveCharacters(true);
+    render();
+  }
+
+  function openBulkTagModal(){
+    bulkTagError.classList.remove('show');
+    document.getElementById('bulk-tag-label').value = '';
+    document.getElementById('bulk-tag-color').value = '#3FA9E8';
+    document.getElementById('bulkTagTitle').textContent = `선택한 ${selectedIds.size}명에게 태그 추가`;
+    const labels = Object.keys(tagPalette);
+    bulkTagPaletteRow.innerHTML = labels.length
+      ? labels.map(label=>{
+          const c = tagPalette[label];
+          return `<span class="tag-palette-chip" data-label="${escapeAttr(label)}" style="background:${c};color:${textColorFor(c)}">${escapeHTML(label)}</span>`;
+        }).join('')
+      : `<span class="hint">저장된 태그가 아직 없어요.</span>`;
+    bulkTagPaletteRow.querySelectorAll('.tag-palette-chip').forEach(chip=>{
+      chip.addEventListener('click', ()=>{
+        document.getElementById('bulk-tag-label').value = chip.dataset.label;
+        document.getElementById('bulk-tag-color').value = tagPalette[chip.dataset.label] || '#3FA9E8';
+      });
+    });
+    bulkTagOverlay.classList.add('open');
+    setTimeout(()=>document.getElementById('bulk-tag-label').focus(), 50);
+  }
+  function closeBulkTagModal(){ bulkTagOverlay.classList.remove('open'); }
+  bulkTagCancelBtn.addEventListener('click', closeBulkTagModal);
+  bulkTagOverlay.addEventListener('click', (e)=>{ if(e.target===bulkTagOverlay) closeBulkTagModal(); });
+
+  bulkTagForm.addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    const label = document.getElementById('bulk-tag-label').value.trim();
+    const color = document.getElementById('bulk-tag-color').value || '#3FA9E8';
+    if(!label){ bulkTagError.textContent = '태그 이름을 입력해주세요'; bulkTagError.classList.add('show'); return; }
+
+    let added = 0, skippedFull = 0, alreadyHad = 0;
+    characters.forEach(c=>{
+      if(!selectedIds.has(c.id)) return;
+      if(!Array.isArray(c.tags)) c.tags = [];
+      if(c.tags.some(t=>t.label===label)){ alreadyHad++; return; }
+      if(c.tags.length >= MAX_TAGS){ skippedFull++; return; }
+      c.tags.push({label, color});
+      added++;
+    });
+
+    tagPalette[label] = color;
+    await saveTagPalette();
+    await saveCharacters(true);
+    closeBulkTagModal();
+    let msg = `${added}명에게 태그를 추가했어요`;
+    if(alreadyHad) msg += ` · ${alreadyHad}명은 이미 있었어요`;
+    if(skippedFull) msg += ` · ${skippedFull}명은 태그가 꽉 차서 건너뜀`;
+    showToast(msg);
+    render();
+  });
 
   function attachDragHandlers(){
     const cards = characterGrid.querySelectorAll('.grid-card');
@@ -994,7 +1215,7 @@
     if(!labels.length){ tagPaletteRow.innerHTML = `<span class="hint">저장된 태그가 아직 없어요.</span>`; return; }
     tagPaletteRow.innerHTML = labels.map(label=>{
       const c = tagPalette[label];
-      return `<span class="tag-palette-chip" data-label="${escapeAttr(label)}" style="background:${c};color:${textColorFor(c)}">${escapeHTML(label)}</span>`;
+      return `<span class="tag-palette-chip" data-label="${escapeAttr(label)}" style="background:${c};color:${textColorFor(c)}">${escapeHTML(label)}<span class="chip-x" data-label="${escapeAttr(label)}" title="이 태그를 전체 도감에서 삭제">×</span></span>`;
     }).join('');
     tagPaletteRow.querySelectorAll('.tag-palette-chip').forEach(chip=>{
       chip.addEventListener('click', ()=>{
@@ -1006,6 +1227,17 @@
         else if(currentTags.length < MAX_TAGS){ currentTags.push({label,color}); }
         else { showToast('태그는 최대 5개까지예요'); return; }
         renderTagRows();
+      });
+    });
+    tagPaletteRow.querySelectorAll('.chip-x').forEach(x=>{
+      x.addEventListener('click', async (e)=>{
+        e.stopPropagation();
+        const label = x.dataset.label;
+        if(!confirm(`"${label}" 태그를 도감 전체 태그 목록에서 삭제할까요?\n(이미 이 태그를 달고 있는 캐릭터에서는 그대로 남아있어요. 새로 추천되지만 않아요.)`)) return;
+        delete tagPalette[label];
+        await saveTagPalette();
+        renderTagPaletteRow();
+        showToast('태그를 삭제했어요');
       });
     });
   }
@@ -1021,6 +1253,7 @@
         <span class="tag-idx">${i+1}</span>
         <input type="text" data-idx="${i}" class="tag-label-input" placeholder="태그 이름" value="${escapeAttr(t.label)}" />
         <input type="color" data-idx="${i}" class="tag-color-input" value="${t.color || '#3FA9E8'}" />
+        <button type="button" class="tag-clear-btn" data-idx="${i}" title="이 칸 비우기" ${t.label ? '' : 'disabled'}>×</button>
       </div>
     `).join('');
     tagRows.querySelectorAll('.tag-label-input').forEach(inp=>{
@@ -1033,11 +1266,105 @@
           const colorInput = tagRows.querySelector(`.tag-color-input[data-idx="${idx}"]`);
           if(colorInput) colorInput.value = tagPalette[match];
         }
+        const clearBtn = tagRows.querySelector(`.tag-clear-btn[data-idx="${idx}"]`);
+        if(clearBtn) clearBtn.disabled = !inp.value;
       });
     });
     tagRows.querySelectorAll('.tag-color-input').forEach(inp=>{
       inp.addEventListener('input', ()=>{ currentTags[Number(inp.dataset.idx)].color = inp.value; });
     });
+    tagRows.querySelectorAll('.tag-clear-btn').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const idx = Number(btn.dataset.idx);
+        currentTags[idx] = { label:'', color: pickDefaultColor(idx) };
+        renderTagRows();
+      });
+    });
+  }
+
+  /* ---------- tag management panel (rename/recolor propagates to every character) ---------- */
+  function tagUsageCount(label){
+    return characters.reduce((n,c)=> n + ((c.tags||[]).some(t=>t.label===label) ? 1 : 0), 0);
+  }
+  function openTagManageModal(){
+    renderTagManageList();
+    tagManageOverlay.classList.add('open');
+  }
+  function closeTagManageModal(){ tagManageOverlay.classList.remove('open'); }
+  tagManageCloseBtn.addEventListener('click', closeTagManageModal);
+  tagManageOverlay.addEventListener('click', (e)=>{ if(e.target===tagManageOverlay) closeTagManageModal(); });
+
+  function renderTagManageList(){
+    const labels = Object.keys(tagPalette);
+    if(!labels.length){
+      tagManageList.innerHTML = `<p class="tag-manage-empty">아직 등록된 태그가 없어요.</p>`;
+      return;
+    }
+    tagManageList.innerHTML = labels.map(label=>{
+      const color = tagPalette[label];
+      const count = tagUsageCount(label);
+      return `
+      <div class="tag-manage-row" data-original="${escapeAttr(label)}">
+        <input type="color" class="tm-color" value="${color}" />
+        <input type="text" class="tm-label" value="${escapeAttr(label)}" />
+        <span class="tm-count">${count}명 사용중</span>
+        <button type="button" class="btn edit tm-save">저장</button>
+        <button type="button" class="btn delete tm-delete">삭제</button>
+      </div>`;
+    }).join('');
+
+    tagManageList.querySelectorAll('.tm-save').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        const row = btn.closest('.tag-manage-row');
+        const oldLabel = row.dataset.original;
+        const newLabel = row.querySelector('.tm-label').value.trim();
+        const newColor = row.querySelector('.tm-color').value;
+        await updateGlobalTag(oldLabel, newLabel, newColor);
+      });
+    });
+    tagManageList.querySelectorAll('.tm-delete').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        const row = btn.closest('.tag-manage-row');
+        const label = row.dataset.original;
+        const count = tagUsageCount(label);
+        if(!confirm(`"${label}" 태그를 목록에서 삭제할까요?${count ? `\n(이미 이 태그가 달린 캐릭터 ${count}명한테는 그대로 남아있어요.)` : ''}`)) return;
+        delete tagPalette[label];
+        await saveTagPalette();
+        renderTagManageList();
+        showToast('태그를 삭제했어요');
+      });
+    });
+  }
+
+  async function updateGlobalTag(oldLabel, newLabel, newColor){
+    if(!newLabel){ showToast('태그 이름을 입력해주세요'); return; }
+    const renamed = newLabel !== oldLabel;
+    const mergingIntoExisting = renamed && Object.prototype.hasOwnProperty.call(tagPalette, newLabel);
+    if(mergingIntoExisting){
+      const count = tagUsageCount(oldLabel);
+      if(!confirm(`"${newLabel}" 태그가 이미 있어요. "${oldLabel}"을(를) 여기에 합칠까요?${count ? ` (${count}명의 캐릭터가 영향받아요)` : ''}`)) return;
+    }
+
+    if(renamed) delete tagPalette[oldLabel];
+    tagPalette[newLabel] = newColor;
+
+    characters.forEach(c=>{
+      if(!Array.isArray(c.tags) || !c.tags.length) return;
+      const seen = new Set();
+      c.tags = c.tags
+        .map(t => t.label === oldLabel ? { label:newLabel, color:newColor } : t)
+        .filter(t=>{
+          if(seen.has(t.label)) return false; // dedupe if merge created a duplicate on one character
+          seen.add(t.label);
+          return true;
+        });
+    });
+
+    await saveTagPalette();
+    await saveCharacters(true);
+    renderTagManageList();
+    render();
+    showToast(renamed ? '태그 이름을 바꾸고 모든 캐릭터에 반영했어요' : '태그 색을 바꾸고 모든 캐릭터에 반영했어요');
   }
 
   /* ---------- form-version editor (in modal) ---------- */
@@ -1243,7 +1570,7 @@
 // Bump this string every time this file is redeployed (a paired version.json
 // with the same value must be committed alongside index.html).
 (function(){
-  const BUILD_VERSION = '2026-08-13T12-39-43Z';
+  const BUILD_VERSION = '2026-08-13T13-09-46Z';
   const CHECK_INTERVAL_MS = 20000;
   async function checkForUpdate(){
     try{
