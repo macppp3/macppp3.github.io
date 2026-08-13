@@ -104,7 +104,8 @@
   .grid-card.drag-over{ outline:2px dashed var(--lavender-deep); outline-offset:3px; }
   .grid-thumb-wrap{ width:100%; aspect-ratio:1/1; border-radius:12px; overflow:hidden; background:var(--sky-pale); margin-bottom:10px; }
   .grid-thumb{ width:100%;height:100%; background-size:cover; background-position:center; display:flex;align-items:center;justify-content:center; color:#fff; font-weight:800; font-size:64px; }
-  .grid-no{ font-family:var(--font-mono); font-size:11px; color:var(--ink-soft); }
+  .grid-no{ font-family:var(--font-mono); font-size:11px; color:var(--ink-soft); display:flex; align-items:center; justify-content:center; gap:6px; }
+  .grid-like{ font-family:var(--font-mono); font-size:10.5px; color:var(--danger); }
   .grid-name{ font-weight:700; font-size:15px; margin:2px 0 9px; line-height:1.25; }
   .grid-tags{ display:flex; flex-wrap:wrap; gap:5px; justify-content:center; }
   .grid-tag{ font-size:10.5px; font-weight:600; padding:3px 9px; border-radius:999px; background:var(--sky-pale); border:1px solid var(--sky); color:var(--ink); }
@@ -173,6 +174,16 @@
   }
   .detail-info h2{ font-family:var(--font-display); font-weight:800; font-size:27px; margin:0 0 4px; letter-spacing:-.01em; }
   .info-species{ font-size:13.5px; color:var(--ink-soft); font-weight:500; margin-bottom:16px; }
+  .like-btn{
+    display:inline-flex; align-items:center; gap:7px;
+    border:1.5px solid var(--danger); background:var(--card); color:var(--danger);
+    padding:8px 16px; border-radius:999px; font-size:13px; font-weight:700;
+    margin-bottom:18px; transition:background .12s, transform .1s;
+  }
+  .like-btn:hover{ background:var(--danger-soft); }
+  .like-btn:active{ transform:scale(.96); }
+  .like-btn.liked{ background:var(--danger-soft); }
+  .like-count{ font-family:var(--font-mono); }
   .section-label{
     font-family:var(--font-mono); font-size:10.5px; letter-spacing:.1em; color:var(--ink-soft);
     text-transform:uppercase; margin:0 0 8px;
@@ -458,6 +469,8 @@
   let activeFormIndex = -1; // -1 = base
   let currentTags = [];
   let currentForms = []; // working array while editing: {id, label, image, tmi, skills}
+  let likeCounts = {}; // character_id -> count
+  const likedThisSession = {}; // character_id -> true (optimistic, resets on reload)
 
   const SAMPLE = [
     {
@@ -622,6 +635,46 @@
         else if(key === TAG_PALETTE_KEY){ await refreshTagPaletteFromDB(); }
       })
       .subscribe();
+    sb.channel('dex-likes-sync')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'character_likes' }, async ()=>{
+        await loadLikeCounts();
+        if(!isEditingRightNow()) render();
+      })
+      .subscribe();
+  }
+
+  /* ---------- likes (per character, shared across all its forms) ---------- */
+  async function loadLikeCounts(){
+    try{
+      const { data, error } = await sb.from('character_like_counts').select('*');
+      if(error) throw error;
+      likeCounts = {};
+      (data||[]).forEach(r=>{ likeCounts[r.character_id] = r.like_count; });
+    }catch(e){
+      console.error('좋아요 개수 불러오기 실패', e);
+    }
+  }
+  async function likeCharacter(id){
+    if(likedThisSession[id]){
+      showToast('오늘은 이미 눌렀어요');
+      return;
+    }
+    try{
+      const { data, error } = await sb.rpc('add_character_like', { p_character_id: id });
+      if(error) throw error;
+      if(data && data.success){
+        likedThisSession[id] = true;
+        likeCounts[id] = (likeCounts[id]||0) + 1;
+        showToast('❤️ 좋아요!');
+      }else{
+        likedThisSession[id] = true;
+        showToast('오늘은 이미 눌렀어요 — 내일 다시 눌러주세요');
+      }
+      render();
+    }catch(e){
+      console.error('좋아요 실패', e);
+      showToast('좋아요 처리에 실패했어요. SQL 설정이 안 돼있을 수 있어요.');
+    }
   }
 
   /* ---------- helpers ---------- */
@@ -764,10 +817,11 @@
     characterGrid.innerHTML = list.map(c=>{
       const globalNo = characters.indexOf(c) + 1;
       const skills = (c.skills||[]).slice(0,3);
+      const likes = likeCounts[c.id] || 0;
       return `
       <div class="grid-card" data-id="${c.id}" draggable="${canDrag ? 'true' : 'false'}">
         <div class="grid-thumb-wrap">${thumbHTML(c, 'grid-thumb')}</div>
-        <div class="grid-no">No.${pad(globalNo)}</div>
+        <div class="grid-no">No.${pad(globalNo)} <span class="grid-like">❤ ${likes}</span></div>
         <div class="grid-name">${escapeHTML(c.name || '이름 없음')}</div>
         <div class="grid-tags">${skills.map(s=>`<span class="grid-tag">${escapeHTML(s)}</span>`).join('')}</div>
       </div>`;
@@ -888,6 +942,10 @@
             ${ (ch.tags && ch.tags.length) ? `<div class="pill-tags">${ch.tags.map(t=>`<span class="pill-tag" style="background:${escapeAttr(t.color||'#3FA9E8')};color:${textColorFor(t.color)}">${escapeHTML(t.label)}</span>`).join('')}</div>` : `<p class="no-skills">등록된 태그가 없어요.</p>` }
           </div>
         </div>
+        <button class="like-btn ${likedThisSession[ch.id] ? 'liked' : ''}" id="likeBtn" type="button">
+          <span>${likedThisSession[ch.id] ? '❤️' : '🤍'}</span>
+          <span class="like-count">${likeCounts[ch.id] || 0}</span>
+        </button>
         ${ isEditor ? `
         <div class="detail-actions">
           <button class="btn edit" id="editBtn">수정</button>
@@ -897,6 +955,7 @@
     `;
 
     document.getElementById('backBtn').addEventListener('click', closeDetail);
+    document.getElementById('likeBtn').addEventListener('click', ()=> likeCharacter(ch.id));
     if(prevCh) document.getElementById('prevBtn').addEventListener('click', ()=>{ activeId = prevCh.id; activeFormIndex = -1; renderDetail(); });
     if(nextCh) document.getElementById('nextBtn').addEventListener('click', ()=>{ activeId = nextCh.id; activeFormIndex = -1; renderDetail(); });
     if(forms.length){
@@ -1172,7 +1231,7 @@
   });
 
   (async function init(){
-    await Promise.all([loadCharacters(), loadTagPalette()]);
+    await Promise.all([loadCharacters(), loadTagPalette(), loadLikeCounts()]);
     render();
     setupRealtime();
   })();
@@ -1184,7 +1243,7 @@
 // Bump this string every time this file is redeployed (a paired version.json
 // with the same value must be committed alongside index.html).
 (function(){
-  const BUILD_VERSION = '2026-08-13T11-50-46Z';
+  const BUILD_VERSION = '2026-08-13T12-39-43Z';
   const CHECK_INTERVAL_MS = 20000;
   async function checkForUpdate(){
     try{
