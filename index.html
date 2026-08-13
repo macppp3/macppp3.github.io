@@ -412,8 +412,8 @@
     fatalError('⚠️ Supabase 라이브러리를 불러오지 못했어요. 인터넷 연결을 확인하고 새로고침 해주세요. (외부 CDN 접속이 막힌 네트워크일 수 있어요)');
     return;
   }
-  const SUPABASE_URL = 'https://eofnztvmexhncvllyxyt.supabase.co';
-  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVvZm56dHZtZXhobmN2bGx5eHl0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY2MTIwMjcsImV4cCI6MjEwMjE4ODAyN30.VoxY9fuHSY6sZRGDFsNozQSyiu8oyu_vxEqUunqllyE';
+  const SUPABASE_URL = 'https://bnwtohexsfaglwcraxoe.supabase.co';
+  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJud3RvaGV4c2ZhZ2x3Y3JheG9lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY2MTA4NTQsImV4cCI6MjEwMjE4Njg1NH0.7RxV_5ix8ZxxTiYvnU4SZtpBtS21JDxcoaHeqbY6wzk';
   const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
   });
@@ -594,6 +594,36 @@
     }
   }
 
+  /* ---------- realtime sync (other visitors' edits appear live) ---------- */
+  async function refreshCharactersFromDB(){
+    try{
+      const value = await withRetry(()=> sbGet(CHAR_KEY));
+      if(value !== null){
+        characters = JSON.parse(value);
+        characters.forEach(c=>{ if(!Array.isArray(c.forms)) c.forms = []; });
+      }
+    }catch(e){ console.error('실시간 갱신 실패', e); }
+  }
+  async function refreshTagPaletteFromDB(){
+    try{
+      const value = await withRetry(()=> sbGet(TAG_PALETTE_KEY));
+      if(value !== null) tagPalette = JSON.parse(value);
+    }catch(e){ console.error('태그 실시간 갱신 실패', e); }
+  }
+  function isEditingRightNow(){
+    return modalOverlay.classList.contains('open') || loginOverlay.classList.contains('open');
+  }
+  function setupRealtime(){
+    sb.channel('dex-live-sync')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'dex_storage' }, async (payload)=>{
+        const key = (payload.new && payload.new.key) || (payload.old && payload.old.key);
+        if(!key || isEditingRightNow()) return; // don't yank the rug out from under an active edit
+        if(key === CHAR_KEY){ await refreshCharactersFromDB(); render(); }
+        else if(key === TAG_PALETTE_KEY){ await refreshTagPaletteFromDB(); }
+      })
+      .subscribe();
+  }
+
   /* ---------- helpers ---------- */
   function hueColor(str){
     let hash = 0;
@@ -634,15 +664,65 @@
       authArea.innerHTML = `
         <span class="editor-pill">편집자 모드</span>
         <button class="add-btn" id="addBtn">+ 새 캐릭터</button>
+        <button class="ghost-btn" id="exportBtn" title="백업 파일 다운로드">백업 저장</button>
+        <label class="ghost-btn file-upload-btn" style="margin:0;">백업 복원<input type="file" id="importInput" accept="application/json" hidden /></label>
         <button class="ghost-btn" id="logoutBtn">로그아웃</button>
       `;
       document.getElementById('addBtn').addEventListener('click', ()=> openCharModal(null));
+      document.getElementById('exportBtn').addEventListener('click', exportBackup);
+      document.getElementById('importInput').addEventListener('change', handleImportFile);
       document.getElementById('logoutBtn').addEventListener('click', ()=>{
         isEditor = false; showToast('로그아웃했어요'); render();
       });
     }else{
       authArea.innerHTML = `<button class="ghost-btn" id="loginBtn">편집자 로그인</button>`;
       document.getElementById('loginBtn').addEventListener('click', openLoginModal);
+    }
+  }
+
+  function exportBackup(){
+    const backup = {
+      exportedAt: new Date().toISOString(),
+      characters: characters,
+      tagPalette: tagPalette
+    };
+    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const stamp = new Date().toISOString().slice(0,10);
+    a.href = url;
+    a.download = `oc-dex-backup-${stamp}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('백업 파일을 다운로드했어요');
+  }
+
+  async function handleImportFile(e){
+    const file = e.target.files && e.target.files[0];
+    if(!file) return;
+    try{
+      const text = await file.text();
+      const data = JSON.parse(text);
+      if(!data || !Array.isArray(data.characters)){
+        showToast('올바른 백업 파일이 아니에요');
+        return;
+      }
+      const count = data.characters.length;
+      if(!confirm(`백업 파일에 캐릭터 ${count}명이 들어있어요. 지금 도감 내용을 이걸로 완전히 덮어쓸까요? (되돌릴 수 없어요)`)) return;
+      characters = data.characters;
+      characters.forEach(c=>{ if(!Array.isArray(c.forms)) c.forms = []; });
+      tagPalette = data.tagPalette || {};
+      await saveCharacters(false);
+      await saveTagPalette();
+      showToast('백업을 복원했어요');
+      render();
+    }catch(err){
+      console.error(err);
+      showToast('백업 파일을 읽지 못했어요');
+    }finally{
+      e.target.value = '';
     }
   }
   function openLoginModal(){
@@ -1094,7 +1174,29 @@
   (async function init(){
     await Promise.all([loadCharacters(), loadTagPalette()]);
     render();
+    setupRealtime();
   })();
+})();
+</script>
+
+<script>
+// ---- auto-reload when a new version is deployed to GitHub Pages ----
+// Bump this string every time this file is redeployed (a paired version.json
+// with the same value must be committed alongside index.html).
+(function(){
+  const BUILD_VERSION = '2026-08-13T11-50-46Z';
+  const CHECK_INTERVAL_MS = 20000;
+  async function checkForUpdate(){
+    try{
+      const res = await fetch('./version.json?t=' + Date.now(), { cache: 'no-store' });
+      if(!res.ok) return;
+      const data = await res.json();
+      if(data && data.version && data.version !== BUILD_VERSION){
+        location.reload();
+      }
+    }catch(e){ /* network hiccup, ignore and retry next interval */ }
+  }
+  setInterval(checkForUpdate, CHECK_INTERVAL_MS);
 })();
 </script>
 </body>
